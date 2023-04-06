@@ -1,4 +1,4 @@
-use cosmwasm_schema::cw_serde;
+use cosmwasm_schema::{cw_serde, QueryResponses};
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -13,16 +13,17 @@ pub struct InstantiateMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
-   Disburse {}
+    Disburse {},
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema, QueryResponses)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
- GetOwners {}
+    #[returns(GetOwnersResponse)]
+    GetOwners {},
 }
 
 #[cw_serde]
 pub struct GetOwnersResponse {
-    pub owners: Vec<Owner>
+    pub owners: Vec<Owner>,
 }

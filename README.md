@@ -1,6 +1,6 @@
 # Disburser
 
-This contract is originally designed to be a registered x/feeshare withdraw address, and therefore receive fees in denominations supported by the x/feeshare module for that chain. It is designed for teams apps where ownership and contributions ideally remain unchanged from then-on. The contract is non-migratable, and ideally non-mutable upon creation.
+This contract is originally designed to be a registered x/feeshare withdraw address, and therefore receive fees in denominations supported by the x/feeshare module for that chain. It is designed for a team's app where ownership and contributions ideally remain unchanged from then-on. The contract is non-migratable, and ideally non-mutable upon creation.
 
 During instantiation, a set of benefactor addresses and their associated weights--which can also be thought of as shares or % ownership of the related fee-generating contract--are provided. 
 

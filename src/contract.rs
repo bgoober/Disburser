@@ -32,7 +32,7 @@ pub fn instantiate(
     }
 
     for owner in &msg.owners {
-        if owner.ownership <= 0 {
+        if owner.ownership == 0 {
             return Err(StdError::generic_err(
                 "Individual Ownership must be greater than 0",
             ));
@@ -52,7 +52,7 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
-        ExecuteMsg::Disburse {} => disburse(deps, info.clone()),
+        ExecuteMsg::Disburse {} => disburse(deps, info),
     }
 }
 
@@ -60,7 +60,7 @@ pub fn disburse(mut _deps: DepsMut, _info: MessageInfo) -> Result<Response, Cont
     todo!()
 
     // dusbursing of funds follows this logic:
-    
+
 
 
 }

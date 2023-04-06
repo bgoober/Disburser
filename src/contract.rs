@@ -1,41 +1,85 @@
+
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
-use cosmwasm_std::{Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
-// use cw2::set_contract_version;
+use cosmwasm_std::{Binary, Deps, StdError, DepsMut, Env, MessageInfo, Response, StdResult, to_binary};
+
+use cw2::set_contract_version;
 
 use crate::error::ContractError;
 use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
+use crate::state::CONFIG;
 
-/*
+
 // version info for migration info
 const CONTRACT_NAME: &str = "crates.io:disburser";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
-*/
 
-#[cfg_attr(not(feature = "library"), entry_point)]
+
 pub fn instantiate(
-    _deps: DepsMut,
+    deps: DepsMut,
     _env: Env,
     _info: MessageInfo,
-    _msg: InstantiateMsg,
-) -> Result<Response, ContractError> {
-    unimplemented!()
+    msg: InstantiateMsg,
+) -> StdResult<Response> {
+    set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
+
+    let mut total_ownership: u8 = 0;
+
+    // Check that the sum of the individual ownerships is equal to 100
+    for owner in &msg.owners {
+        total_ownership += owner.ownership;
+    }
+
+    if total_ownership != 100 {
+        return Err(StdError::generic_err("Total Ownership is not 100%."));
+    }
+
+    for owner in &msg.owners {
+        if owner.ownership <= 0 {
+            return Err(StdError::generic_err("Individual Ownership must be greater than 0"))
+        }
+    }
+
+    CONFIG.save(deps.storage, &msg.owners)?;
+
+
+    Ok(Response::default())
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(
-    _deps: DepsMut,
+    deps: DepsMut,
     _env: Env,
-    _info: MessageInfo,
-    _msg: ExecuteMsg,
+    info: MessageInfo,
+    msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
-    unimplemented!()
+    match msg {
+        ExecuteMsg::Disburse { } => disburse(deps, info.clone()),
+    }
 }
 
-#[cfg_attr(not(feature = "library"), entry_point)]
-pub fn query(_deps: Deps, _env: Env, _msg: QueryMsg) -> StdResult<Binary> {
-    unimplemented!()
+pub fn disburse(mut _deps: DepsMut, _info: MessageInfo) -> Result<Response, ContractError> {
+    todo!()
 }
 
-#[cfg(test)]
-mod tests {}
+
+#[entry_point]
+pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
+    match msg {
+        QueryMsg::GetOwners {} => to_binary(&query::get_owners(deps)?),
+    }
+}
+
+pub mod query {
+    use cosmwasm_std::{Deps, StdResult};
+
+    use crate::{msg::GetOwnersResponse, state::{CONFIG}};
+
+
+    pub fn get_owners(deps: Deps) -> StdResult<GetOwnersResponse> {
+        let config = CONFIG.load(deps.storage)?;
+        Ok(GetOwnersResponse { owners: config })
+    }
+}
+
+

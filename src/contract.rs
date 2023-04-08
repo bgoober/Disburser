@@ -26,10 +26,19 @@ pub fn instantiate(
     // Set the contract version.
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
-    // Calculate the total ownership percentage for all the owners.
+    let mut seen_addresses: Vec<String> = vec![];
     let mut total_ownership: u8 = 0;
+
     for owner in &msg.owners {
         total_ownership += owner.ownership;
+
+        if seen_addresses.contains(&owner.address.to_string()) {
+            return Err(StdError::generic_err(
+                "Duplicate owner address has been input more than once",
+            ));
+        } else {
+            seen_addresses.push(owner.address.to_string());
+        }
     }
 
     // Check if the total ownership is equal to 100%. If not, return an error.
@@ -75,14 +84,16 @@ pub fn disburse(deps: DepsMut, info: MessageInfo, _envv: Env) -> Result<Response
     // Check if the sender is authorized to disburse funds by iterating over the `config` and looking for a matching address.
     let authorized = config.iter().any(|owner| owner.address == info.sender);
     if !authorized {
-        return Err(ContractError::Unauthorized {});
+        return Err(StdError::generic_err("Unauthorized to disburse funds.").into());
     }
 
     // Build messages to disburse funds to each owner based on their ownership percentage.
     let messages = build_messages(&info.funds, &config);
 
     // Return a successful `Response` with the built messages to disburse the funds.
-    Ok(Response::new().add_messages(messages))
+    Ok(Response::new()
+        .add_messages(messages)
+        .add_attribute("disbursed_by", info.sender.to_string()))
 }
 
 // Define a function called `build_messages` that takes in two arguments of type `&[Coin]` and `&[Owner]`

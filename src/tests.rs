@@ -3,7 +3,7 @@ mod tests {
 
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
     use cosmwasm_std::{coins, from_binary, Addr, StdError};
-    use serde::{Serialize, Deserialize};
+    use serde::{Deserialize, Serialize};
 
     use crate::contract::{execute, instantiate};
     use crate::msg::{ExecuteMsg, GetConfigResponse, InstantiateMsg, QueryMsg};
@@ -216,11 +216,14 @@ mod tests {
 
         #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
         struct ContractError(pub String);
-        
+
         // unauthorized disburse
         let msg = ExecuteMsg::Disburse {};
         let info = mock_info("unauthorized", &coins(1000, "earth"));
         let error = execute(deps.as_mut(), env.clone(), info.clone(), msg).unwrap_err();
-        assert_eq!(error, StdError::generic_err("Unauthorized to disburse funds.").into());
+        assert_eq!(
+            error,
+            StdError::generic_err("Unauthorized to disburse funds.").into()
+        );
     }
 }

@@ -3,6 +3,7 @@ mod tests {
 
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
     use cosmwasm_std::{coins, from_binary, Addr, StdError};
+    use serde::{Serialize, Deserialize};
 
     use crate::contract::{execute, instantiate};
     use crate::msg::{ExecuteMsg, GetOwnersResponse, InstantiateMsg, QueryMsg};
@@ -213,14 +214,13 @@ mod tests {
 
         instantiate(deps.as_mut(), env.clone(), info.clone(), msg).unwrap();
 
-        // Owner1 disburse
+        #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+        struct ContractError(pub String);
+        
+        // unauthorized disburse
         let msg = ExecuteMsg::Disburse {};
         let info = mock_info("unauthorized", &coins(1000, "earth"));
-        let res = execute(deps.as_mut(), env.clone(), info.clone(), msg).unwrap();
-        assert!(res.is_err());
-        assert_eq!(
-            res.err().unwrap(),
-            Err(StdError::generic_err("Unauthorized to disburse funds.").into()),
-        );
+        let error = execute(deps.as_mut(), env.clone(), info.clone(), msg).unwrap_err();
+        assert_eq!(error, StdError::generic_err("Unauthorized to disburse funds.").into());
     }
 }

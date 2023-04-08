@@ -3,15 +3,14 @@ use std::env;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    Addr, BalanceResponse, BankMsg, Coin, Decimal, DepsMut, Env, MessageInfo, Response, StdError,
-    StdResult, QueryResponse, Uint128,
+    BankMsg, Coin, CosmosMsg, DepsMut, Env, MessageInfo, Response, StdError, StdResult,
 };
 
 use cw2::set_contract_version;
 
 use crate::error::ContractError;
-use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
-use crate::state::CONFIG;
+use crate::msg::{ExecuteMsg, InstantiateMsg};
+use crate::state::{Owner, CONFIG};
 
 // version info for migration info
 const CONTRACT_NAME: &str = "crates.io:disburser";
@@ -50,124 +49,58 @@ pub fn instantiate(
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
+// Define the `execute` entry point function, which takes in several arguments and returns a `Result<Response, ContractError>`.
 pub fn execute(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
+    // Match on the message type received and execute the appropriate code based on the type.
     match msg {
         ExecuteMsg::Disburse {} => disburse(deps, info, env),
     }
 }
 
-pub fn disburse(deps: DepsMut, info: MessageInfo, env: Env) -> Result<Response, ContractError> {
-    // dusbursing of funds follows this logic:
-    // load config from storage
-    // if the info.sender is not in the list of Owners, then send an unauthorized error
-
+// Define the `disburse` function, which takes in several arguments and returns a `Result<Response, ContractError>`.
+pub fn disburse(deps: DepsMut, info: MessageInfo, _envv: Env) -> Result<Response, ContractError> {
+    // Load the `config` data from storage.
     let config = CONFIG.load(deps.storage)?;
 
-    let mut owners = vec![];
-
-    for owner in config {
-        let owner = owner.address;
-        {
-            owners.push(owner);
-        }
+    // Check if the sender is authorized to disburse funds by iterating over the `config` and looking for a matching address.
+    let authorized = config.iter().any(|owner| owner.address == info.sender);
+    if !authorized {
+        return Err(ContractError::Unauthorized {});
     }
 
-    if !owners.contains(&info.sender) {
-        Err(ContractError::Unauthorized {})
-    } else {
-        let bank_msg: BankMsg = build_messages(deps, env)?;
-        Ok(Response::new().add_message(bank_msg))
-    }
+    // Build messages to disburse funds to each owner based on their ownership percentage.
+    let messages = build_messages(&info.funds, &config);
+
+    // Return a successful `Response` with the built messages to disburse the funds.
+    Ok(Response::new().add_messages(messages))
 }
 
-pub fn build_messages_(deps: DepsMut, env: Env) -> Result<BankMsg, ContractError> {
-    // the build_messages function will be used to build the individual BankMsg sends to each beneficiary.
-    // the logic for this function will be as follows:
-    // load the config from storage
-    // query the contract's wallet for the the tokens it currently has, and the amount of those tokens
-    // for each owner in the config, calculate the amount of tokens they are entitled to, for each token held by the address, based on their ownership percentage
-    // create a BankMsg::Send for each owner in the config, and send each token the contract owns by that addresses' ownership percentage
+// Define a function called `build_messages` that takes in two arguments of type `&[Coin]` and `&[Owner]`
+// and returns a `Vec<CosmosMsg>`.
+pub fn build_messages(funds: &[Coin], owners: &[Owner]) -> Vec<CosmosMsg> {
+    // Loop over each `owner` in the `owners` vector and apply a closure to it.
+    owners
+        .iter()
+        .map(|Owner { address, ownership }| {
+            // For each `owner`, calculate the amount of funds they should receive based on their ownership percentage.
+            let amount = funds
+                .iter()
+                .map(|Coin { denom, amount }| Coin {
+                    denom: denom.clone(),
+                    amount: amount.multiply_ratio(*ownership, 100u128),
+                })
+                .collect();
 
-    // let contract_addr = deps.api.addr_humanize(&env.contract.address)?;
-
-    // // load the config from storage
-    // let config = CONFIG.load(deps.storage)?;
-
-    // // query the contract's wallet for the the tokens it currently has, and the amount of those tokens
-    // let query_msg = QueryMsg::Balance { address: contract_addr.to_string() };
-
-    // let res: BalanceResponse = deps.querier.query(&query_msg)?;
-
-    // let mut bank_msg = BankMsg::new();
-
-    // for owner in config {
-    //     let owner_ = owner.address;
-    //     let ownership = owner.ownership;
-
-    //     for balance in res.balance {
-    //         let denom = balance.denom;
-    //         let amount = balance.amount;
-
-    //         let amount = amount * ownership / 100;
-
-    //         let send_msg = BankMsg::Send {
-    //             to_address: owner_.to_string(),
-    //             amount: vec![Coin {
-    //                 denom: denom,
-    //                 amount: amount,
-    //             }],
-    //         };
-
-    //         bank_msg = bank_msg.add(send_msg);
-    //     }
-    // }
-
-    // Ok(bank_msg)
-    todo!("build_messages")
+            // Build a `CosmosMsg` that sends the calculated amount of funds to the `owner`'s address.
+            CosmosMsg::Bank(BankMsg::Send {
+                to_address: address.to_string(),
+                amount,
+            })
+        })
+        .collect() // Collect all the built `CosmosMsg` instances into a vector.
 }
-
-
-pub fn build_messages(deps: DepsMut, env: Env) -> StdResult<BankMsg> {
-    let contract_addr = Addr::unchecked(env.contract.address);
-
-    // load the config from storage
-    let config = CONFIG.load(deps.storage)?;
-
-    // query the contract's wallet for the tokens it currently has
-  let query_msg = QueryMsg::Balance {
-        address: contract_addr.to_string(),
-    };
-    let res: QueryResponse = deps.querier.query(&query_msg)?;
-
-    let mut bank_msg = BankMsg::Send();
-
-    for owner in &config {
-        let owner_ = Addr::unchecked(owner.address.clone());
-        let ownership = owner.ownership as u8;
-
-        for coin in &res.balance {
-            let denom = coin.denom.clone();
-            let amount = coin.amount;
-
-            let amount = (Uint128::from(amount) * Uint128::from(ownership) / Uint128::from(100));
-
-            let send_msg = BankMsg::Send {
-                to_address: owner_.to_string(),
-                amount: vec![Coin {
-                    denom: denom,
-                    amount: amount.into(),
-                }],
-            };
-
-            bank_msg = bank_msg.add(send_msg);
-        }
-    }
-
-    Ok(bank_msg)
-}
-

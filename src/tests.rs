@@ -6,7 +6,7 @@ mod tests {
     use serde::{Serialize, Deserialize};
 
     use crate::contract::{execute, instantiate};
-    use crate::msg::{ExecuteMsg, GetOwnersResponse, InstantiateMsg, QueryMsg};
+    use crate::msg::{ExecuteMsg, GetConfigResponse, InstantiateMsg, QueryMsg};
     use crate::queries::query;
     use crate::state::Owner;
 
@@ -35,11 +35,11 @@ mod tests {
         assert_eq!(1, res.attributes.len());
 
         // it worked, let's query the state and test the response is what we expect
-        let res = query(deps.as_ref(), env.clone(), QueryMsg::GetOwners {}).unwrap();
-        let value: GetOwnersResponse = from_binary(&res).unwrap();
+        let res = query(deps.as_ref(), env.clone(), QueryMsg::GetConfig {}).unwrap();
+        let value: GetConfigResponse = from_binary(&res).unwrap();
         assert_eq!(
             value,
-            GetOwnersResponse {
+            GetConfigResponse {
                 owners: vec![
                     Owner {
                         address: Addr::unchecked("owner1"),

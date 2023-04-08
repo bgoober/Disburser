@@ -2,13 +2,16 @@ use std::env;
 
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
-use cosmwasm_std::{DepsMut, Env, MessageInfo, Response, StdError, StdResult, BankMsg};
+use cosmwasm_std::{
+    Addr, BalanceResponse, BankMsg, Coin, Decimal, DepsMut, Env, MessageInfo, Response, StdError,
+    StdResult, QueryResponse, Uint128,
+};
 
 use cw2::set_contract_version;
 
 use crate::error::ContractError;
-use crate::msg::{ExecuteMsg, InstantiateMsg};
-use crate::state::{CONFIG};
+use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
+use crate::state::CONFIG;
 
 // version info for migration info
 const CONTRACT_NAME: &str = "crates.io:disburser";
@@ -36,14 +39,14 @@ pub fn instantiate(
     for owner in &msg.owners {
         if owner.ownership == 0 {
             return Err(StdError::generic_err(
-                "Individual Ownership must be greater than 0",
+                "Individual Ownership must be greater than 0.",
             ));
         }
     }
 
     CONFIG.save(deps.storage, &msg.owners)?;
 
-    Ok(Response::default())
+    Ok(Response::new().add_attribute("action", "instantiate"))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -59,7 +62,6 @@ pub fn execute(
 }
 
 pub fn disburse(deps: DepsMut, info: MessageInfo, env: Env) -> Result<Response, ContractError> {
-
     // dusbursing of funds follows this logic:
     // load config from storage
     // if the info.sender is not in the list of Owners, then send an unauthorized error
@@ -69,50 +71,103 @@ pub fn disburse(deps: DepsMut, info: MessageInfo, env: Env) -> Result<Response, 
     let mut owners = vec![];
 
     for owner in config {
-        let owner = owner.address; {
+        let owner = owner.address;
+        {
             owners.push(owner);
         }
-    };
+    }
 
     if !owners.contains(&info.sender) {
         Err(ContractError::Unauthorized {})
     } else {
-        let bank_msg: BankMsg = send_tokens(deps, env)?;
-        Ok(Response::new()
-.add_message(bank_msg))
+        let bank_msg: BankMsg = build_messages(deps, env)?;
+        Ok(Response::new().add_message(bank_msg))
     }
-
 }
 
+pub fn build_messages_(deps: DepsMut, env: Env) -> Result<BankMsg, ContractError> {
+    // the build_messages function will be used to build the individual BankMsg sends to each beneficiary.
+    // the logic for this function will be as follows:
+    // load the config from storage
+    // query the contract's wallet for the the tokens it currently has, and the amount of those tokens
+    // for each owner in the config, calculate the amount of tokens they are entitled to, for each token held by the address, based on their ownership percentage
+    // create a BankMsg::Send for each owner in the config, and send each token the contract owns by that addresses' ownership percentage
 
-pub fn send_tokens(_deps: DepsMut, _env: Env) -> Result<BankMsg, ContractError> {
-    
+    // let contract_addr = deps.api.addr_humanize(&env.contract.address)?;
+
+    // // load the config from storage
     // let config = CONFIG.load(deps.storage)?;
 
-//             SubMsg::new(CosmosMsg::Bank(BankMsg::Send {
+    // // query the contract's wallet for the the tokens it currently has, and the amount of those tokens
+    // let query_msg = QueryMsg::Balance { address: contract_addr.to_string() };
 
+    // let res: BalanceResponse = deps.querier.query(&query_msg)?;
 
-//    // define a message payload as a new ExecuteMsg
-//    // the tokenfactory_types::msg::ExecuteMsg::Mint path comes from the tokenfactory module
-//    // another way of doing this would be to import above "use tokenfactory_types::msg::ExecuteMsg::Mint" and just use Mint here
-//    let payload =  {
-//        // same as using Mint without importing the entire module's path to the Mint function
-//        address: info.sender.to_string(), // address to mint the tokens to is the info.sender of this execute message
-//        denom: std::vec![NATIVE_TOKEN.load(deps.storage)?], // token denom is the NATIVE_TOKEN Item from storage, in a vector
-//    };
+    // let mut bank_msg = BankMsg::new();
 
-//    // define the mint_msg as a Wasm Execute message
-//    let mint_msg = WasmMsg::Execute {
-//        contract_addr: contract_addr.to_string(), // contract address to send it to is the contract_addr defined above
-//        msg: to_binary(&payload)?, // message to be sent, in binary format, is the payload object define above
-//        funds: std::vec![], // an empty funds vector means no funds are being sent to the admin contract with the message
-//    };
+    // for owner in config {
+    //     let owner_ = owner.address;
+    //     let ownership = owner.ownership;
 
-//    // add the mint_msg, which is the WasmMsg, to the Ok result/response
-//    Ok(mint_msg)
+    //     for balance in res.balance {
+    //         let denom = balance.denom;
+    //         let amount = balance.amount;
 
-todo!("Query the contract's wallet for the tokens it has. Create a BankMsg::Send for each owner in the config, and send each token the contract owns by that addresses' ownership percentage.")
+    //         let amount = amount * ownership / 100;
 
+    //         let send_msg = BankMsg::Send {
+    //             to_address: owner_.to_string(),
+    //             amount: vec![Coin {
+    //                 denom: denom,
+    //                 amount: amount,
+    //             }],
+    //         };
 
+    //         bank_msg = bank_msg.add(send_msg);
+    //     }
+    // }
 
+    // Ok(bank_msg)
+    todo!("build_messages")
 }
+
+
+pub fn build_messages(deps: DepsMut, env: Env) -> StdResult<BankMsg> {
+    let contract_addr = Addr::unchecked(env.contract.address);
+
+    // load the config from storage
+    let config = CONFIG.load(deps.storage)?;
+
+    // query the contract's wallet for the tokens it currently has
+  let query_msg = QueryMsg::Balance {
+        address: contract_addr.to_string(),
+    };
+    let res: QueryResponse = deps.querier.query(&query_msg)?;
+
+    let mut bank_msg = BankMsg::Send();
+
+    for owner in &config {
+        let owner_ = Addr::unchecked(owner.address.clone());
+        let ownership = owner.ownership as u8;
+
+        for coin in &res.balance {
+            let denom = coin.denom.clone();
+            let amount = coin.amount;
+
+            let amount = (Uint128::from(amount) * Uint128::from(ownership) / Uint128::from(100));
+
+            let send_msg = BankMsg::Send {
+                to_address: owner_.to_string(),
+                amount: vec![Coin {
+                    denom: denom,
+                    amount: amount.into(),
+                }],
+            };
+
+            bank_msg = bank_msg.add(send_msg);
+        }
+    }
+
+    Ok(bank_msg)
+}
+

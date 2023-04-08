@@ -1,5 +1,6 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
 
+use cosmwasm_std::{BalanceResponse, Coin};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -21,9 +22,17 @@ pub enum ExecuteMsg {
 pub enum QueryMsg {
     #[returns(GetOwnersResponse)]
     GetOwners {},
+
+    #[returns(BalanceResponse)]
+    Balance {address: String}
 }
 
 #[cw_serde]
 pub struct GetOwnersResponse {
     pub owners: Vec<Owner>,
+}
+
+#[cw_serde]
+pub struct GetBalanceResponse {
+    pub balances: Vec<Coin>,
 }

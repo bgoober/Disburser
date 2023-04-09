@@ -156,7 +156,7 @@ mod tests {
         };
 
         // Check that the `Total Ownership must equal 100%` error is thrown when the total ownership is greater than 100
-        let res = instantiate(deps.as_mut(), env, info.clone(), msg);
+        let err = instantiate(deps.as_mut(), env, info.clone(), msg).unwrap_err();
         assert!(res.is_err());
         assert_eq!(
             res.err().unwrap(),

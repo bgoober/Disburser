@@ -5,17 +5,17 @@ use crate::msg::QueryMsg;
 #[entry_point]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::GetConfig {} => to_binary(&CONFIG.load(deps.storage)?),
+        QueryMsg::GetOwners {} => to_binary(&query::get_owners(deps)?),
     }
 }
 
 pub mod query {
     use cosmwasm_std::{Deps, StdResult};
 
-    use crate::{msg::GetConfigResponse, state::CONFIG};
+    use crate::{msg::GetOwnersResponse, state::OWNERS};
 
-    pub fn get_config(deps: Deps) -> StdResult<GetConfigResponse> {
-        let config = CONFIG.load(deps.storage)?;
-        Ok(GetConfigResponse { owners: config })
+    pub fn get_owners(deps: Deps) -> StdResult<GetOwnersResponse> {
+        let owners = OWNERS.load(deps.storage)?;
+        Ok(GetOwnersResponse { owners })
     }
 }

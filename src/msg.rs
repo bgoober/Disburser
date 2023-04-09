@@ -19,11 +19,11 @@ pub enum ExecuteMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema, QueryResponses)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
-    #[returns(GetConfigResponse)]
-    GetConfig {},
+    #[returns(GetOwnersResponse)]
+    GetOwners {},
 }
 
 #[cw_serde]
-pub struct GetConfigResponse {
+pub struct GetOwnersResponse {
     pub owners: Vec<Owner>,
 }

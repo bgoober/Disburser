@@ -10,7 +10,7 @@ use cw2::set_contract_version;
 
 use crate::error::ContractError;
 use crate::msg::{ExecuteMsg, InstantiateMsg};
-use crate::state::{Owner, CONFIG};
+use crate::state::{Owner, OWNERS};
 
 // version info for migration info
 const CONTRACT_NAME: &str = "crates.io:disburser";
@@ -32,6 +32,11 @@ pub fn instantiate(
     for owner in &msg.owners {
         total_ownership += owner.ownership;
 
+        // check total onwership is 100%
+        if total_ownership != 100 {
+            return Err(StdError::generic_err("Total Ownership must equal 100%."));
+        }
+        // check for duplicate addresses
         if seen_addresses.contains(&owner.address.to_string()) {
             return Err(StdError::generic_err(
                 "Duplicate owner address has been input more than once",
@@ -39,15 +44,7 @@ pub fn instantiate(
         } else {
             seen_addresses.push(owner.address.to_string());
         }
-    }
-
-    // Check if the total ownership is equal to 100%. If not, return an error.
-    if total_ownership != 100 {
-        return Err(StdError::generic_err("Total Ownership must equal 100%."));
-    }
-
-    // Check if each owner's individual ownership is greater than 0%. If not, return an error.
-    for owner in &msg.owners {
+        // check for 0 ownership values
         if owner.ownership == 0 {
             return Err(StdError::generic_err(
                 "Individual Ownership must be greater than 0.",
@@ -56,10 +53,10 @@ pub fn instantiate(
     }
 
     // Save the owners and their ownership percentages to storage.
-    CONFIG.save(deps.storage, &msg.owners)?;
+    OWNERS.save(deps.storage, &msg.owners)?;
 
     // Return a successful `Response`.
-    Ok(Response::new().add_attribute("action", "instantiate"))
+    Ok(Response::default())
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -78,17 +75,17 @@ pub fn execute(
 
 // Define the `disburse` function, which takes in several arguments and returns a `Result<Response, ContractError>`.
 pub fn disburse(deps: DepsMut, info: MessageInfo, _envv: Env) -> Result<Response, ContractError> {
-    // Load the `config` data from storage.
-    let config = CONFIG.load(deps.storage)?;
+    // Load the `owners` data from storage.
+    let owners = OWNERS.load(deps.storage)?;
 
-    // Check if the sender is authorized to disburse funds by iterating over the `config` and looking for a matching address.
-    let authorized = config.iter().any(|owner| owner.address == info.sender);
+    // Check if the sender is authorized to disburse funds by iterating over the `owners` and looking for a matching address.
+    let authorized = owners.iter().any(|owner| owner.address == info.sender);
     if !authorized {
         return Err(StdError::generic_err("Unauthorized to disburse funds.").into());
     }
 
     // Build messages to disburse funds to each owner based on their ownership percentage.
-    let messages = build_messages(&info.funds, &config);
+    let messages = build_messages(&info.funds, &owners);
 
     // Return a successful `Response` with the built messages to disburse the funds.
     Ok(Response::new()

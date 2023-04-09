@@ -3,10 +3,9 @@ mod tests {
 
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
     use cosmwasm_std::{coins, from_binary, Addr, StdError};
-    use serde::{Deserialize, Serialize};
 
     use crate::contract::{execute, instantiate};
-    use crate::msg::{ExecuteMsg, GetConfigResponse, InstantiateMsg, QueryMsg};
+    use crate::msg::{ExecuteMsg, GetOwnersResponse, InstantiateMsg, QueryMsg};
     use crate::queries::query;
     use crate::state::Owner;
 
@@ -32,14 +31,14 @@ mod tests {
         // we can just call .unwrap() to assert this was a success
         let res = instantiate(deps.as_mut(), env.clone(), info.clone(), msg).unwrap();
         assert_eq!(0, res.messages.len());
-        assert_eq!(1, res.attributes.len());
+        assert_eq!(0, res.attributes.len());
 
         // it worked, let's query the state and test the response is what we expect
-        let res = query(deps.as_ref(), env.clone(), QueryMsg::GetConfig {}).unwrap();
-        let value: GetConfigResponse = from_binary(&res).unwrap();
+        let res = query(deps.as_ref(), env.clone(), QueryMsg::GetOwners {}).unwrap();
+        let value: GetOwnersResponse = from_binary(&res).unwrap();
         assert_eq!(
             value,
-            GetConfigResponse {
+            GetOwnersResponse {
                 owners: vec![
                     Owner {
                         address: Addr::unchecked("owner1"),
@@ -155,11 +154,9 @@ mod tests {
             ],
         };
 
-        // Check that the `Total Ownership must equal 100%` error is thrown when the total ownership is greater than 100
         let err = instantiate(deps.as_mut(), env, info.clone(), msg).unwrap_err();
-        assert!(res.is_err());
         assert_eq!(
-            res.err().unwrap(),
+            err,
             cosmwasm_std::StdError::generic_err(
                 "Duplicate owner address has been input more than once"
             ),
@@ -185,10 +182,9 @@ mod tests {
         };
 
         // Check that the `Total Ownership must equal 100%` error is thrown when the total ownership is greater than 100
-        let res = instantiate(deps.as_mut(), env, info.clone(), msg);
-        assert!(res.is_err());
+        let err = instantiate(deps.as_mut(), env, info.clone(), msg).unwrap_err();
         assert_eq!(
-            res.err().unwrap(),
+            err,
             cosmwasm_std::StdError::generic_err("Individual Ownership must be greater than 0."),
         );
     }
@@ -214,15 +210,12 @@ mod tests {
 
         instantiate(deps.as_mut(), env.clone(), info.clone(), msg).unwrap();
 
-        #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
-        struct ContractError(pub String);
-
         // unauthorized disburse
         let msg = ExecuteMsg::Disburse {};
         let info = mock_info("unauthorized", &coins(1000, "earth"));
-        let error = execute(deps.as_mut(), env.clone(), info.clone(), msg).unwrap_err();
+        let err = execute(deps.as_mut(), env.clone(), info.clone(), msg).unwrap_err();
         assert_eq!(
-            error,
+            err,
             StdError::generic_err("Unauthorized to disburse funds.").into()
         );
     }

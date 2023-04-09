@@ -5,7 +5,7 @@ use crate::msg::QueryMsg;
 #[entry_point]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::GetConfig {} => to_binary(&query::get_config(deps)?),
+        QueryMsg::GetConfig {} => to_binary(&CONFIG.load(deps.storage)?),
     }
 }
 

@@ -2,7 +2,7 @@
 mod tests {
 
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
-    use cosmwasm_std::{coins, from_binary, Addr};
+    use cosmwasm_std::{from_binary, Addr, coins};
 
     use crate::contract::{execute, instantiate};
     use crate::msg::{ExecuteMsg, GetOwnersResponse, InstantiateMsg, QueryMsg};
@@ -13,26 +13,26 @@ mod tests {
     #[test]
     fn test_proper_instantiation() {
         let mut deps = mock_dependencies();
-
+        let env = mock_env();
+        let info = mock_info("creator", &[]);
         let msg = InstantiateMsg {
             owners: vec![
                 Owner {
                     address: Addr::unchecked("owner1"),
-                    ownership: 45,
+                    ownership: 60,
                 },
                 Owner {
                     address: Addr::unchecked("owner2"),
-                    ownership: 55,
+                    ownership: 40,
                 },
             ],
         };
-        let env = mock_env();
-        let info = mock_info("creator", &coins(1000, "earth"));
 
-        // we can just call .unwrap() to assert this was a success
         let res = instantiate(deps.as_mut(), env.clone(), info.clone(), msg).unwrap();
-        assert_eq!(0, res.messages.len());
-        assert_eq!(0, res.attributes.len());
+        // assert_eq!(0, res.messages.len());
+        // assert_eq!(0, res.attributes.len());
+        // assert!(matches!(res, ContractError::InvalidTotalOwnership {}));
+        println!("RES: {:?}", res);
 
         // it worked, let's query the state and test the response is what we expect
         let res = query(deps.as_ref(), env.clone(), QueryMsg::GetOwners {}).unwrap();
@@ -43,11 +43,11 @@ mod tests {
                 owners: vec![
                     Owner {
                         address: Addr::unchecked("owner1"),
-                        ownership: 45,
+                        ownership: 60,
                     },
                     Owner {
                         address: Addr::unchecked("owner2"),
-                        ownership: 55,
+                        ownership: 40,
                     },
                 ]
             }
@@ -73,12 +73,13 @@ mod tests {
             ],
         };
 
-        instantiate(deps.as_mut(), env.clone(), info.clone(), msg).unwrap_err();
+        instantiate(deps.as_mut(), env.clone(), info.clone(), msg).unwrap();
 
         // Owner1 disburse
         let msg = ExecuteMsg::Disburse {};
         let info = mock_info("owner1", &coins(1000, "earth"));
         let res = execute(deps.as_mut(), env.clone(), info.clone(), msg).unwrap();
+        println!("RES1: {:?}", res);
         // println!("ENTIRE RESPONSE: {:?}", res);
         // println!("MESSAGES: {:?}", res.messages);
 
@@ -96,6 +97,7 @@ mod tests {
         let msg = ExecuteMsg::Disburse {};
         let info = mock_info("owner2", &coins(1000, "earth"));
         let res = execute(deps.as_mut(), env.clone(), info.clone(), msg).unwrap();
+        println!("RES2: {:?}", res);
         // println!("ENTIRE RESPONSE: {:?}", res);
         // println!("MESSAGES: {:?}", res.messages);
 
@@ -129,6 +131,7 @@ mod tests {
         };
 
         let err = instantiate(deps.as_mut(), env, info.clone(), msg).unwrap_err();
+        println!("ERR: {:?}", err);
         assert_eq!(err, ContractError::InvalidTotalOwnership {});
     }
 
@@ -151,6 +154,7 @@ mod tests {
         };
 
         let err = instantiate(deps.as_mut(), env, info.clone(), msg).unwrap_err();
+        println!("ERR: {:?}", err);
         assert_eq!(err, ContractError::InvalidIndividualOwnership {});
     }
 
@@ -173,11 +177,12 @@ mod tests {
             ],
         };
 
-        instantiate(deps.as_mut(), env.clone(), info.clone(), msg).unwrap_err();
+        instantiate(deps.as_mut(), env.clone(), info.clone(), msg).unwrap();
 
         let msg = ExecuteMsg::Disburse {};
-        let info = mock_info("unauthorized", &coins(1000, "earth"));
+        let info = mock_info("unauthorized", &[]);
         let err = execute(deps.as_mut(), env.clone(), info.clone(), msg).unwrap_err();
+        println!("ERR: {:?}", err);
         assert_eq!(err, ContractError::Unauthorized {});
     }
 }

@@ -14,6 +14,7 @@ use crate::state::{Owner, OWNERS};
 const CONTRACT_NAME: &str = "crates.io:disburser";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
+#[cfg_attr(not(feature = "library"), entry_point)]
 // Define the `instantiate` function that takes in several arguments and returns a `StdResult<Response>`.
 pub fn instantiate(
     deps: DepsMut,
@@ -29,17 +30,17 @@ pub fn instantiate(
     for owner in &msg.owners {
         total_ownership += owner.ownership;
 
-        // check total onwership is 100%
-        if total_ownership != 100 {
-            return Err(ContractError::InvalidTotalOwnership {});
-        }
         // check for 0 ownership values
         if owner.ownership == 0 {
             return Err(ContractError::InvalidIndividualOwnership {});
         }
     }
+    // check total onwership is 100%
+    if total_ownership != 100 {
+        return Err(ContractError::InvalidTotalOwnership {});
+    }
 
-    // Save the owners and their ownership percentages to storage.
+    // Save the `owners` data to storage.
     OWNERS.save(deps.storage, &msg.owners)?;
 
     // Return a successful `Response`.

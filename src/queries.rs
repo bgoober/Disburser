@@ -12,10 +12,10 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
 pub mod query {
     use cosmwasm_std::{Deps, StdResult};
 
-    use crate::{msg::GetOwnersResponse, state::CONFIG};
+    use crate::{msg::GetOwnersResponse, state::OWNERS};
 
     pub fn get_owners(deps: Deps) -> StdResult<GetOwnersResponse> {
-        let config = CONFIG.load(deps.storage)?;
-        Ok(GetOwnersResponse { owners: config })
+        let owners = OWNERS.load(deps.storage)?;
+        Ok(GetOwnersResponse { owners })
     }
 }

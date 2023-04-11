@@ -9,4 +9,4 @@ pub struct Owner {
     pub ownership: u8,
 }
 
-pub const CONFIG: Item<Vec<Owner>> = Item::new("config");
+pub const OWNERS: Item<Vec<Owner>> = Item::new("owners");

@@ -2,9 +2,7 @@ use std::env;
 
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
-use cosmwasm_std::{
-    BankMsg, Coin, CosmosMsg, DepsMut, Env, MessageInfo, Response, StdError, StdResult,
-};
+use cosmwasm_std::{BankMsg, Coin, CosmosMsg, DepsMut, Env, MessageInfo, Response};
 
 use cw2::set_contract_version;
 
@@ -22,7 +20,7 @@ pub fn instantiate(
     _env: Env,
     _info: MessageInfo,
     msg: InstantiateMsg,
-) -> StdResult<Response> {
+) -> Result<Response, ContractError> {
     // Set the contract version.
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
@@ -34,21 +32,17 @@ pub fn instantiate(
 
         // check total onwership is 100%
         if total_ownership != 100 {
-            return Err(StdError::generic_err("Total Ownership must equal 100%."));
+            return Err(ContractError::InvalidTotalOwnership {});
         }
         // check for duplicate addresses
         if seen_addresses.contains(&owner.address.to_string()) {
-            return Err(StdError::generic_err(
-                "Duplicate owner address has been input more than once",
-            ));
+            return Err(ContractError::DuplicateOwnerAddress {});
         } else {
             seen_addresses.push(owner.address.to_string());
         }
         // check for 0 ownership values
         if owner.ownership == 0 {
-            return Err(StdError::generic_err(
-                "Individual Ownership must be greater than 0.",
-            ));
+            return Err(ContractError::InvalidOwnership {});
         }
     }
 
@@ -81,7 +75,7 @@ pub fn disburse(deps: DepsMut, info: MessageInfo, _envv: Env) -> Result<Response
     // Check if the sender is authorized to disburse funds by iterating over the `owners` and looking for a matching address.
     let authorized = owners.iter().any(|owner| owner.address == info.sender);
     if !authorized {
-        return Err(StdError::generic_err("Unauthorized to disburse funds.").into());
+        return Err(ContractError::Unauthorized {});
     }
 
     // Build messages to disburse funds to each owner based on their ownership percentage.

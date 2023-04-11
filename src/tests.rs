@@ -2,12 +2,13 @@
 mod tests {
 
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
-    use cosmwasm_std::{coins, from_binary, Addr, StdError};
+    use cosmwasm_std::{coins, from_binary, Addr};
 
     use crate::contract::{execute, instantiate};
     use crate::msg::{ExecuteMsg, GetOwnersResponse, InstantiateMsg, QueryMsg};
     use crate::queries::query;
     use crate::state::Owner;
+    use crate::ContractError;
 
     #[test]
     fn test_proper_instantiation() {
@@ -72,7 +73,7 @@ mod tests {
             ],
         };
 
-        instantiate(deps.as_mut(), env.clone(), info.clone(), msg).unwrap();
+        instantiate(deps.as_mut(), env.clone(), info.clone(), msg).unwrap_err();
 
         // Owner1 disburse
         let msg = ExecuteMsg::Disburse {};
@@ -127,13 +128,8 @@ mod tests {
             ],
         };
 
-        // Check that the `Total Ownership must equal 100%` error is thrown when the total ownership is greater than 100
-        let res = instantiate(deps.as_mut(), env, info.clone(), msg);
-        assert!(res.is_err());
-        assert_eq!(
-            res.err().unwrap(),
-            cosmwasm_std::StdError::generic_err("Total Ownership must equal 100%."),
-        );
+        let err = instantiate(deps.as_mut(), env, info.clone(), msg).unwrap_err();
+        assert_eq!(err, ContractError::InvalidTotalOwnership {});
     }
 
     #[test]
@@ -155,12 +151,7 @@ mod tests {
         };
 
         let err = instantiate(deps.as_mut(), env, info.clone(), msg).unwrap_err();
-        assert_eq!(
-            err,
-            cosmwasm_std::StdError::generic_err(
-                "Duplicate owner address has been input more than once"
-            ),
-        );
+        assert_eq!(err, ContractError::DuplicateOwnerAddress {});
     }
 
     #[test]
@@ -181,12 +172,8 @@ mod tests {
             ],
         };
 
-        // Check that the `Total Ownership must equal 100%` error is thrown when the total ownership is greater than 100
         let err = instantiate(deps.as_mut(), env, info.clone(), msg).unwrap_err();
-        assert_eq!(
-            err,
-            cosmwasm_std::StdError::generic_err("Individual Ownership must be greater than 0."),
-        );
+        assert_eq!(err, ContractError::InvalidOwnership {});
     }
 
     #[test]
@@ -208,15 +195,11 @@ mod tests {
             ],
         };
 
-        instantiate(deps.as_mut(), env.clone(), info.clone(), msg).unwrap();
+        instantiate(deps.as_mut(), env.clone(), info.clone(), msg).unwrap_err();
 
-        // unauthorized disburse
         let msg = ExecuteMsg::Disburse {};
         let info = mock_info("unauthorized", &coins(1000, "earth"));
         let err = execute(deps.as_mut(), env.clone(), info.clone(), msg).unwrap_err();
-        assert_eq!(
-            err,
-            StdError::generic_err("Unauthorized to disburse funds.").into()
-        );
+        assert_eq!(err, ContractError::Unauthorized {});
     }
 }

@@ -2,7 +2,7 @@
 mod tests {
 
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
-    use cosmwasm_std::{from_binary, Addr, coins};
+    use cosmwasm_std::{coins, from_binary, Addr};
 
     use crate::contract::{execute, instantiate};
     use crate::msg::{ExecuteMsg, GetOwnersResponse, InstantiateMsg, QueryMsg};

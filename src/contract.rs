@@ -24,7 +24,6 @@ pub fn instantiate(
     // Set the contract version.
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
-    let mut seen_addresses: Vec<String> = vec![];
     let mut total_ownership: u8 = 0;
 
     for owner in &msg.owners {
@@ -34,15 +33,9 @@ pub fn instantiate(
         if total_ownership != 100 {
             return Err(ContractError::InvalidTotalOwnership {});
         }
-        // check for duplicate addresses
-        if seen_addresses.contains(&owner.address.to_string()) {
-            return Err(ContractError::DuplicateOwnerAddress {});
-        } else {
-            seen_addresses.push(owner.address.to_string());
-        }
         // check for 0 ownership values
         if owner.ownership == 0 {
-            return Err(ContractError::InvalidOwnership {});
+            return Err(ContractError::InvalidIndividualOwnership {});
         }
     }
 

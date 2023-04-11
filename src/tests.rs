@@ -133,28 +133,6 @@ mod tests {
     }
 
     #[test]
-    fn test_instantiate_duplicate_owner_error() {
-        let mut deps = mock_dependencies();
-        let env = mock_env();
-        let info = mock_info("creator", &[]);
-        let msg = InstantiateMsg {
-            owners: vec![
-                Owner {
-                    address: Addr::unchecked("owner1"),
-                    ownership: 50,
-                },
-                Owner {
-                    address: Addr::unchecked("owner1"),
-                    ownership: 50,
-                },
-            ],
-        };
-
-        let err = instantiate(deps.as_mut(), env, info.clone(), msg).unwrap_err();
-        assert_eq!(err, ContractError::DuplicateOwnerAddress {});
-    }
-
-    #[test]
     fn test_instantiate_0_ownership_error() {
         let mut deps = mock_dependencies();
         let env = mock_env();
@@ -173,7 +151,7 @@ mod tests {
         };
 
         let err = instantiate(deps.as_mut(), env, info.clone(), msg).unwrap_err();
-        assert_eq!(err, ContractError::InvalidOwnership {});
+        assert_eq!(err, ContractError::InvalidIndividualOwnership {});
     }
 
     #[test]

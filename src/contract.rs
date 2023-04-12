@@ -62,7 +62,7 @@ pub fn execute(
 }
 
 // Define the `disburse` function, which takes in several arguments and returns a `Result<Response, ContractError>`.
-pub fn disburse(deps: DepsMut, info: MessageInfo, _envv: Env) -> Result<Response, ContractError> {
+pub fn disburse(deps: DepsMut, info: MessageInfo, env: Env) -> Result<Response, ContractError> {
     // Load the `owners` data from storage.
     let owners = OWNERS.load(deps.storage)?;
 
@@ -72,8 +72,11 @@ pub fn disburse(deps: DepsMut, info: MessageInfo, _envv: Env) -> Result<Response
         return Err(ContractError::Unauthorized {});
     }
 
-    // Build messages to disburse funds to each owner based on their ownership percentage.
-    let messages = build_messages(&info.funds, &owners);
+    // Get the contract's token balance
+    let contract_balance = deps.querier.query_all_balances(env.contract.address)?;
+
+    // Build messages to disburse funds to each owner based on their ownership percentage and the contract's token balance.
+    let messages = build_messages(&contract_balance, &owners);
 
     // Return a successful `Response` with the built messages to disburse the funds.
     Ok(Response::new()

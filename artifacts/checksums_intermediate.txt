@@ -1,0 +1,1 @@
+e50e219fda63f2510f15239c5aab524d51825973d35199d4619aa921e2720060  ./target/wasm32-unknown-unknown/release/disburser.wasm

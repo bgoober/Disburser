@@ -10,11 +10,8 @@ pub enum ContractError {
     Unauthorized {},
 
     #[error("Individual Ownership must be greater than 0.")]
-    InvalidOwnership {},
+    InvalidIndividualOwnership {},
 
     #[error("Total Ownership must equal 100%.")]
     InvalidTotalOwnership {},
-
-    #[error("Duplicate owner address has been input more than once")]
-    DuplicateOwnerAddress {},
 }

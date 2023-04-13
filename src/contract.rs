@@ -14,6 +14,7 @@ use crate::state::{Owner, OWNERS};
 const CONTRACT_NAME: &str = "crates.io:disburser";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
+#[cfg_attr(not(feature = "library"), entry_point)]
 // Define the `instantiate` function that takes in several arguments and returns a `StdResult<Response>`.
 pub fn instantiate(
     deps: DepsMut,
@@ -24,29 +25,22 @@ pub fn instantiate(
     // Set the contract version.
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
-    let mut seen_addresses: Vec<String> = vec![];
     let mut total_ownership: u8 = 0;
 
     for owner in &msg.owners {
         total_ownership += owner.ownership;
 
-        // check total onwership is 100%
-        if total_ownership != 100 {
-            return Err(ContractError::InvalidTotalOwnership {});
-        }
-        // check for duplicate addresses
-        if seen_addresses.contains(&owner.address.to_string()) {
-            return Err(ContractError::DuplicateOwnerAddress {});
-        } else {
-            seen_addresses.push(owner.address.to_string());
-        }
         // check for 0 ownership values
         if owner.ownership == 0 {
-            return Err(ContractError::InvalidOwnership {});
+            return Err(ContractError::InvalidIndividualOwnership {});
         }
     }
+    // check total onwership is 100%
+    if total_ownership != 100 {
+        return Err(ContractError::InvalidTotalOwnership {});
+    }
 
-    // Save the owners and their ownership percentages to storage.
+    // Save the `owners` data to storage.
     OWNERS.save(deps.storage, &msg.owners)?;
 
     // Return a successful `Response`.
@@ -68,7 +62,7 @@ pub fn execute(
 }
 
 // Define the `disburse` function, which takes in several arguments and returns a `Result<Response, ContractError>`.
-pub fn disburse(deps: DepsMut, info: MessageInfo, _envv: Env) -> Result<Response, ContractError> {
+pub fn disburse(deps: DepsMut, info: MessageInfo, env: Env) -> Result<Response, ContractError> {
     // Load the `owners` data from storage.
     let owners = OWNERS.load(deps.storage)?;
 
@@ -78,8 +72,11 @@ pub fn disburse(deps: DepsMut, info: MessageInfo, _envv: Env) -> Result<Response
         return Err(ContractError::Unauthorized {});
     }
 
-    // Build messages to disburse funds to each owner based on their ownership percentage.
-    let messages = build_messages(&info.funds, &owners);
+    // Get the contract's token balance
+    let contract_balance = deps.querier.query_all_balances(env.contract.address)?;
+
+    // Build messages to disburse funds to each owner based on their ownership percentage and the contract's token balance.
+    let messages = build_messages(&contract_balance, &owners);
 
     // Return a successful `Response` with the built messages to disburse the funds.
     Ok(Response::new()
